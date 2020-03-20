@@ -1,25 +1,259 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Coursera Reproducible Research Course Project 1"
+author: "Seng-Shi Deng"
+date: "3/19/2020"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "C:/Users/y2kyn/OneDrive/Desktop/Coursera/Reproducible Research/Course Project 1")
+```
 
-## Loading and preprocessing the data
+## Preliminary Process
 
+This section includes all the code that is needed before the Loading and Preprocessing section of the project, to include checking/creating a folder, setting a working directory, checking for the existence of the zip file in question, and the downloading and unziping of the file as necessary.
 
+```{r preliminary process}
+
+fileUrl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+
+zipfile.name <-"Dataset.zip"
+
+# Checks to see if the required file has been downloaded.  If not,  
+# it downloads the file. #
+if(!file.exists(zipfile.name)){
+        download.file(fileUrl, destfile = zipfile.name , method = "curl")
+}
+
+filename <- "activity.csv"
+
+# Checks to see if the file name exists.  If not, it unzips the required 
+# file. #
+if(!file.exists(filename)){
+        unzip(zipfile.name)
+}
+
+```
+
+## Loading and Preprocessing
+
+### Task: 1. Load the data (i.e. read.csv()) 
+
+```{r Loading Data}
+
+amd <- read.csv(filename, header = TRUE)
+
+head(amd)
+
+```
+
+### Task: 2. Process/transform the data (if necessary) into a format suitable for your analysis.
+
+Processing and transforming the data was not necessary to conduct the analysis that I did.
 
 ## What is mean total number of steps taken per day?
 
+## For this part of the assignment, you can ignore the missing values in the dataset.
 
+### Task: 1. Calculate the total number of steps taken per day.
+
+```{r Calculations 1}
+
+steps.per.day <- tapply(amd$steps, INDEX = amd$date, FUN = sum, na.rm = TRUE)
+
+steps.per.day
+
+```
+
+### Task: 2. If you do not understand the difference between a histogram and a barplot, research the difference between them.  Make a histogram of the total number of steps taken each day. 
+
+```{r Histogram 1}
+
+# Library needed to use qplot. #
+library(ggplot2)
+
+# Using the Freedman-Diaconis rule to select the widths of the bins to be used
+# in the histogram we plot: #
+
+steps.per.day.range <- range(steps.per.day)
+
+steps.per.day.IQR <- IQR(steps.per.day)
+
+binwidth <- 2 * steps.per.day.IQR * (61)^(-1/3)
+
+# Histogram of the total number of steps taken each day #
+qplot(steps.per.day, geom="blank", main = "Total Number of Steps Taken Each Day"
+      , xlab = "Steps", ylab = "Counts") + geom_histogram(color="black", 
+      fill = "white", breaks = seq(steps.per.day.range[1], 
+      steps.per.day.range[2], binwidth), closed = "right")
+
+```
+
+### Task: 3. Calculate and report the mean and median of the total number of steps taken per day.
+
+```{r Calculations 2}
+
+mean.steps.per.day <- mean(steps.per.day)
+
+median.steps.per.day <- median(steps.per.day)
+
+```
+
+The mean of the total number of steps taken per day is `r mean.steps.per.day`, while the median is `r median.steps.per.day`.
 
 ## What is the average daily activity pattern?
 
+### Task: 1. Make a time series plot(i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis).
 
+```{r Time Series Plot}
+
+mean.steps.per.interval <- tapply(amd$steps, INDEX = amd$interval, 
+                                   FUN = mean, na.rm = TRUE)
+
+intervals <- as.numeric(names(mean.steps.per.interval))
+
+adap <- data.frame(intervals = intervals, mspi = mean.steps.per.interval)
+
+plot(adap$intervals, adap$mspi, type = "l", 
+     main = "Average Number of Steps per Time Interval", 
+     xlab = "5-minute intervals", 
+     ylab = "Average Number of Steps Taken Across All Days")
+
+```
+
+### Task: 2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```{r Specific Interval}
+
+maxnum.steps.interval <- adap$intervals[adap$mspi == max(adap$mspi)]
+
+```
+
+The 5-minute interval which contains the maximum number of steps is `r maxnum.steps.interval`.
 
 ## Imputing missing values
 
+### Task: 1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows of NAs)
 
+```{r Calculations 3}
 
-## Are there differences in activity patterns between weekdays and weekends?
+total.number.NAs <- sum(is.na(amd$steps))
+
+```
+
+The total number of missing values in the dataset is `r total.number.NAs`.
+
+### Task: 2. Devise a strategy for filling in all of the missing values in the dataset.  The strategy does not need to be sophisticated.  For example, you could use the mean/median for the day, or the mean for that 5-minute interval, etc.
+
+```{r Strategy}
+
+# Finds the indices of the steps column that have a value of NA. #
+ind <- which(is.na(amd$steps))
+
+# Fills the missing values in the dataset with the mean for that 5-minute #
+# interval. #
+amd$steps[ind] <- mean.steps.per.interval
+
+steps <- amd$steps
+
+```
+
+### Task: 3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+```{r New Dataset}
+
+new.amd <- data.frame(steps = steps, date = amd$date, interval = amd$interval)
+
+head(new.amd)
+
+```
+
+### Task: 4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day.
+
+```{r Histogram 2}
+
+steps.per.day.no.na <- tapply(new.amd$steps, INDEX = new.amd$date, FUN = sum)
+
+# Once more, using the Freedman-Diaconis rule to select the widths of the bins 
+# to be used in the histogram we plot: #
+
+spdn.range <- range(steps.per.day.no.na)
+
+spdn.IQR <- IQR(steps.per.day.no.na)
+
+spdn.binwidth <- 2 * spdn.IQR * (61)^(-1/3)
+
+qplot(steps.per.day.no.na, geom="blank", main = 
+      "Total Number of Steps Taken Each Day", xlab = "Steps", ylab = "Counts") + 
+      geom_histogram(color="black", fill = "white", 
+      breaks = seq(spdn.range[1], spdn.range[2], spdn.binwidth), 
+      closed = "right")
+
+```
+
+```{r Calculations 4}
+
+mean.spdna <- mean(steps.per.day.no.na)
+
+median.spdna <- median(steps.per.day.no.na)
+
+first.frag <- "The mean of the total number of steps taken per day is "
+mid.frag <- ", while the median is also "
+period <- "."
+
+cat(first.frag, mean.spdna, mid.frag, median.spdna, period, sep = "")
+
+```
+
+### Question: Do these values differ from the estimates from the first part of the assignment?
+
+Answer: The mean and median total number of steps taken per day which includes imputing missing values is greater than than the estimates from the first part of the assignment as is expected.
+
+### Question: What is the impact of imputing missing data on the estimates of the total daily number of steps? 
+
+```{r Impact}
+
+steps.per.day.no.na
+
+```
+
+Answer: As is shown, all the previous intervals which had values of zero, now all have non-zero estimates.
+
+## Question: Are there differences in activity pattern between weekdays and weekends?
+
+### Task: 1. Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+```{r New Factor Variable}
+
+days <- weekdays(as.Date(amd$date))
+
+weekends <- c("Saturday", "Sunday")
+
+days.of.week <- factor(is.element(days, weekends), levels = c(TRUE, FALSE), 
+                       labels = c("weekend", "weekday"))
+
+head(days.of.week)
+
+```
+
+### Task: 2. Make a panel plot containing a time series plot (i.e. type = "l) of the 5-minute inteval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+```{r Panel Plot}
+
+newest.amd <- cbind(new.amd, days.of.week)
+
+amd.wk <- aggregate(steps ~ interval + days.of.week , data = newest.amd, 
+                    FUN = mean)
+
+# Library needed for lattice plotting system of R. #
+library(lattice)
+
+# Panel plot. #
+xyplot(steps ~ interval|days.of.week, layout = c(1,2), xlab = 
+       "5-minute intervals", ylab = "Average Number of Steps Taken", type = "l",
+       lty = 1, data = amd.wk)
+
+```
+
+Answer: There is generally a higher activity pattern on the weekends than on weekdays.
